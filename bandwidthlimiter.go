@@ -590,11 +590,6 @@ func (lrw *limitedResponseWriter) Write(p []byte) (int, error) {
 	return totalWritten, nil
 }
 
-// Required for interface compliance, but we don't apply limiting here
-func (lrw *limitedResponseWriter) WriteHeader(statusCode int) {
-	lrw.ResponseWriter.WriteHeader(statusCode)
-}
-
 // limitedReadCloser wraps io.ReadCloser to apply bandwidth limiting on uploads
 type limitedReadCloser struct {
 	io.ReadCloser
