@@ -604,13 +604,15 @@ func (lrc *limitedReadCloser) Read(p []byte) (int, error) {
 		readSize = 4096 // 4KB chunks
 	}
 
-	// Wait until we have tokens available for this read
-	chunkSize := int64(readSize)
-	for !lrc.bucket.Consume(chunkSize) {
-		// No tokens available, wait a bit
-		time.Sleep(10 * time.Millisecond)
-	}
-
 	// Perform the actual read
-	return lrc.ReadCloser.Read(p[:readSize])
+	n, err := lrc.ReadCloser.Read(p[:readSize])
+
+	// Consume tokens based on actual bytes read
+	if n > 0 {
+		for !lrc.bucket.Consume(int64(n)) {
+			// No tokens available, wait a bit
+			time.Sleep(10 * time.Millisecond)
+		}
+	}
+	return n, err
 }
