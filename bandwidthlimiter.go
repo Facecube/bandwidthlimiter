@@ -570,18 +570,18 @@ func (lrw *limitedResponseWriter) Write(p []byte) (int, error) {
 		// Determine how many bytes to write in this iteration
 		chunkSize := min(int64(len(remaining)), 4096) // 4KB chunks
 
-		// Wait until we have tokens available
-		for !lrw.bucket.Consume(chunkSize) {
-			// No tokens available, wait a bit
-			time.Sleep(10 * time.Millisecond)
-		}
-
 		// Write the chunk
 		written, err := lrw.ResponseWriter.Write(remaining[:chunkSize])
 		totalWritten += written
 
 		if err != nil {
 			return totalWritten, err
+		}
+
+		// Wait until we have tokens available
+		for !lrw.bucket.Consume(int64(written)) {
+			// No tokens available, wait a bit
+			time.Sleep(10 * time.Millisecond)
 		}
 
 		remaining = remaining[written:]
