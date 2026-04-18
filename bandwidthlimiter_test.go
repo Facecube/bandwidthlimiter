@@ -14,6 +14,82 @@ import (
 	"github.com/hhftechnology/bandwidthlimiter"
 )
 
+func TestNew_InputValidation_DefaultLimitZero(t *testing.T) {
+	cfg := bandwidthlimiter.CreateConfig()
+	cfg.DefaultLimit = 0
+
+	_, err := bandwidthlimiter.New(context.Background(), http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {}), cfg, "test")
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if "defaultLimit must be greater than 0" != err.Error() {
+		t.Errorf("unexpected error %q", err.Error())
+	}
+}
+
+func TestNew_InputValidation_DefaultLimitNegative(t *testing.T) {
+	cfg := bandwidthlimiter.CreateConfig()
+	cfg.DefaultLimit = -1
+
+	_, err := bandwidthlimiter.New(context.Background(), http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {}), cfg, "test")
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if "defaultLimit must be greater than 0" != err.Error() {
+		t.Errorf("unexpected error %q", err.Error())
+	}
+}
+
+func TestNew_InputValidation_BurstSizeBelowChunkSize(t *testing.T) {
+	cfg := bandwidthlimiter.CreateConfig()
+	cfg.BurstSize = bandwidthlimiter.CHUNK_SIZE - 1
+
+	_, err := bandwidthlimiter.New(context.Background(), http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {}), cfg, "test")
+
+	if err == nil {
+		t.Fatal("expected error, got nil")
+	}
+	if "burstSize must be greater chunk size to avoid infinite loops" != err.Error() {
+		t.Errorf("unexpected error %q", err.Error())
+	}
+}
+
+func TestNew_DefaultValues(t *testing.T) {
+	ctx := context.Background()
+	next := http.HandlerFunc(func(rw http.ResponseWriter, req *http.Request) {})
+
+	defaultLimit := int64(1024 * 1024)
+	cfg := bandwidthlimiter.CreateConfig()
+	cfg.DefaultLimit = defaultLimit
+	cfg.BurstSize = 0
+	cfg.BucketMaxAge = 0
+	cfg.CleanupInterval = 0
+	cfg.SaveInterval = 0
+
+	handler, err := bandwidthlimiter.New(ctx, next, cfg, "test-defaults")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if bl, ok := handler.(*bandwidthlimiter.BandwidthLimiter); ok {
+		bl.Shutdown()
+	}
+
+	if cfg.BurstSize != defaultLimit*10 {
+		t.Errorf("BurstSize: want %d, got %d", defaultLimit*10, cfg.BurstSize)
+	}
+	if cfg.BucketMaxAge != 3600 {
+		t.Errorf("BucketMaxAge: want 3600, got %d", cfg.BucketMaxAge)
+	}
+	if cfg.CleanupInterval != 300 {
+		t.Errorf("CleanupInterval: want 300, got %d", cfg.CleanupInterval)
+	}
+	if cfg.SaveInterval != 60 {
+		t.Errorf("SaveInterval: want 60, got %d", cfg.SaveInterval)
+	}
+}
+
 // TestBandwidthLimiter tests the basic bandwidth limiting functionality
 func TestBandwidthLimiter(t *testing.T) {
 	// Create plugin configuration with more aggressive limits for testing
@@ -33,9 +109,8 @@ func TestBandwidthLimiter(t *testing.T) {
 		}
 		// Write in chunks to ensure rate limiting is applied properly
 		written := 0
-		chunkSize := 4096
 		for written < len(data) {
-			end := written + chunkSize
+			end := written + bandwidthlimiter.CHUNK_SIZE
 			if end > len(data) {
 				end = len(data)
 			}

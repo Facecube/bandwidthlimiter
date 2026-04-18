@@ -15,6 +15,8 @@ import (
 	"time"
 )
 
+const CHUNK_SIZE = 4096 //4KB
+
 // Config holds the plugin configuration
 type Config struct {
 	// Default bandwidth limit in bytes per second (for both uploads and downloads)
@@ -171,6 +173,10 @@ func New(ctx context.Context, next http.Handler, config *Config, name string) (h
 
 	if config.BurstSize == 0 {
 		config.BurstSize = config.DefaultLimit * 10 // Default burst is 10x the rate
+	}
+
+	if config.BurstSize < CHUNK_SIZE {
+		return nil, fmt.Errorf("burstSize must be greater chunk size to avoid infinite loops")
 	}
 
 	if config.BucketMaxAge == 0 {
@@ -568,7 +574,7 @@ func (lrw *limitedResponseWriter) Write(p []byte) (int, error) {
 
 	for len(remaining) > 0 {
 		// Determine how many bytes to write in this iteration
-		chunkSize := min(int64(len(remaining)), 4096) // 4KB chunks
+		chunkSize := min(int64(len(remaining)), CHUNK_SIZE)
 
 		// Write the chunk
 		written, err := lrw.ResponseWriter.Write(remaining[:chunkSize])
@@ -600,8 +606,8 @@ type limitedReadCloser struct {
 func (lrc *limitedReadCloser) Read(p []byte) (int, error) {
 	// Limit the read size to apply rate limiting more granularly
 	readSize := len(p)
-	if readSize > 4096 {
-		readSize = 4096 // 4KB chunks
+	if readSize > CHUNK_SIZE {
+		readSize = CHUNK_SIZE
 	}
 
 	// Perform the actual read
