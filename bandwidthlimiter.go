@@ -120,8 +120,10 @@ func (tb *TokenBucket) Consume(tokens int64) bool {
 	now := time.Now()
 	elapsed := now.Sub(tb.lastRefill)
 	tokensToAdd := int64(elapsed.Seconds() * float64(tb.limit))
-	tb.tokens = min(tb.tokens+tokensToAdd, tb.burstSize)
-	tb.lastRefill = now
+	if tokensToAdd > 0 {
+		tb.tokens = min(tb.tokens+tokensToAdd, tb.burstSize)
+		tb.lastRefill = now
+	}
 
 	// Check if we have enough tokens
 	if tb.tokens >= tokens {
