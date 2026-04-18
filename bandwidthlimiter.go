@@ -358,7 +358,9 @@ func (bl *BandwidthLimiter) saveBuckets() error {
 		return fmt.Errorf("failed to encode buckets: %w", err)
 	}
 
-	file.Close()
+	if err := file.Close(); err != nil {
+		return fmt.Errorf("failed to close file: %w", err)
+	}
 
 	// Atomic rename
 	if err := os.Rename(tempFile, bl.config.PersistenceFile); err != nil {
