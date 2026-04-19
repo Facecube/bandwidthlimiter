@@ -1,0 +1,7 @@
+http:
+  middlewares:
+    my-bandwidth-limiter:
+      plugin:
+        bandwidthlimiter:
+          defaultLimit: 1310720 # 10Mbps
+          burstSize: 1310720 # 10Mbps

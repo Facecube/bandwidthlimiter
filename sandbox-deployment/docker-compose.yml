@@ -1,0 +1,23 @@
+version: '3.8'
+services:
+  traefik:
+    image: traefik:latest
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro # rancher desktop vm docker socket
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./dynamic.yml:/etc/traefik/dynamic.yml:ro
+      - ./traefik/plugins-storage:/plugins-storage:rw
+      - ./traefik/plugins-storage:/plugins-local:rw
+      - ../:/plugins-local/src/github.com/hhftechnology/bandwidthlimiter:ro
+    ports:
+      - "80:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.traefik.rule=(PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+      - "traefik.http.routers.traefik.service=api@internal"
+  dummy-api:
+    build: ./dummy-api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.dummy.rule=PathPrefix(`/dummy`)"
+      - "traefik.http.routers.dummy.middlewares=my-bandwidth-limiter@file"

@@ -1,0 +1,35 @@
+log:
+  level: DEBUG
+
+file:
+  watch: true
+
+accessLog:
+  filePath: "/access.log"
+  format: json
+  fields:
+    defaultMode: keep
+    names:
+      RequestContentSize: keep
+      DownstreamContentSize: keep
+
+api:
+  insecure: false
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+
+providers:
+  file:
+    filename: /etc/traefik/dynamic.yml
+    watch: true
+  docker:
+    endpoint: "unix:///var/run/docker.sock"
+    exposedByDefault: false
+
+experimental:
+  localPlugins:
+    bandwidthlimiter:
+      moduleName: github.com/hhftechnology/bandwidthlimiter
